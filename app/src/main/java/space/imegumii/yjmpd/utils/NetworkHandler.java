@@ -26,6 +26,10 @@ public class NetworkHandler {
         return nwh;
     }
 
+    public String getUrl() {
+        return protocol + hostName + ":" + port;
+    }
+
     public Request getRequest(String path, Callback cb) {
         Request req = new Request.Builder()
                 .url(protocol + hostName + ":" + port + path)

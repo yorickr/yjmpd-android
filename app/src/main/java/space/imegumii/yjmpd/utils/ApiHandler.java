@@ -5,7 +5,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
@@ -15,15 +14,17 @@ import okhttp3.Response;
 import space.imegumii.yjmpd.objects.Song;
 
 /**
- * Created by imegumii on 06/06/2017.
+ * Created by Yorick Rommers on 06/06/2017.
  */
 
 public class ApiHandler {
 
     public interface Cb <T> {
-        public void onEvent(T o);
+        void onEvent(T o);
     }
 
+    public static void downloadSong(int songId) {
+    }
 
     public static void getSongs (final Cb<SortedSet<Song>> cb) {
         NetworkHandler.getInstance().getRequest("/api/songs", new Callback() {

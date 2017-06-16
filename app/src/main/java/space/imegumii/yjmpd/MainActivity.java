@@ -1,35 +1,53 @@
 package space.imegumii.yjmpd;
 
+import android.Manifest;
+import android.app.DownloadManager;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.view.View;
 import android.support.design.widget.NavigationView;
+import android.support.design.widget.Snackbar;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
+import android.support.v4.widget.TextViewCompat;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
+import android.widget.TextView;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.SortedSet;
 
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import space.imegumii.yjmpd.constants.Constants;
 import space.imegumii.yjmpd.objects.Song;
 import space.imegumii.yjmpd.utils.ApiHandler;
+import space.imegumii.yjmpd.utils.GenericAdapter;
 import space.imegumii.yjmpd.utils.NetworkHandler;
 
-public class MainActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener {
+public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
+
+    List<Song> songs = new ArrayList<>();
+    GenericAdapter<Song> adapter;
+
+    boolean writePermission = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,10 +65,10 @@ public class MainActivity extends AppCompatActivity
                 ApiHandler.getSongs(new ApiHandler.Cb<SortedSet<Song>>() {
                     @Override
                     public void onEvent(SortedSet<Song> o) {
-                        System.out.println("Onevent called");
                         for (Song song : o) {
-                            System.out.println(song);
+                            songs.add(song);
                         }
+                        notifyAdapter();
                     }
                 });
             }
@@ -64,6 +82,66 @@ public class MainActivity extends AppCompatActivity
 
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
+
+        ListView mainListView = (ListView) findViewById(R.id.main_listview);
+        mainListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                Log.d(Constants.LOG_TAG, "Shit yo I found something at " + position);
+                Song s = songs.get(position);
+                Log.d(Constants.LOG_TAG, "It is probably " + s.toString());
+
+                String url = NetworkHandler.getInstance().getUrl() + "/api/song/" + s.id;
+                Log.d(Constants.LOG_TAG, "Downloading " + url);
+                DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+                request.setDescription("Yo dawg downloading stuff.");
+                request.setTitle("Downloading " + s.title);
+                request.allowScanningByMediaScanner();
+                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, s.id + ".mp3");
+                // get download service and enqueue file
+                DownloadManager manager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+                manager.enqueue(request);
+            }
+        });
+        adapter = new GenericAdapter<Song>(this, R.layout.song, songs);
+        adapter.setRenderCallback(new GenericAdapter.RenderCallback() {
+            @Override
+            public View render(int position, @Nullable View convertView, @NonNull ViewGroup parent, Context c, Object o) {
+                if (convertView == null) {
+                    convertView = LayoutInflater.from(c).inflate(R.layout.song, parent, false);
+                }
+                Song s = (Song) o;
+
+                TextView t = (TextView) convertView.findViewById(R.id.song_title);
+                t.setText(s.title);
+                return convertView;
+            }
+        });
+        mainListView.setAdapter(adapter);
+
+        permissionCheck();
+    }
+
+    public void permissionCheck() {
+        int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+
+        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, Constants.WRITE_EXTERNAL_STORAGE);
+        } else {
+            // We have permission!
+            writePermission = true;
+            Log.d(Constants.LOG_TAG, "We have writing permission");
+        }
+    }
+
+    public void notifyAdapter() {
+        this.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                adapter.notifyDataSetChanged();
+            }
+        });
     }
 
     @Override
@@ -121,5 +199,24 @@ public class MainActivity extends AppCompatActivity
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case Constants.WRITE_EXTERNAL_STORAGE:
+                if ((grantResults.length > 0) && (grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+                    // We have permission!
+                    writePermission = true;
+                    Log.d(Constants.LOG_TAG, "We have writing permission");
+                } else {
+                    writePermission = false;
+                    Log.d(Constants.LOG_TAG, "We don't have writing permission");
+                }
+                break;
+
+            default:
+                break;
+        }
     }
 }

@@ -2,18 +2,16 @@ package space.imegumii.yjmpd.objects;
 
 import android.support.annotation.NonNull;
 
-import java.util.Comparator;
-
 /**
  * Created by imegumii on 06/06/2017.
  */
 
 public class Song implements Comparable{
-    private int id;
-    private String artist;
-    private String album;
-    private String genre;
-    private String title;
+    public int id;
+    public String artist;
+    public String album;
+    public String genre;
+    public String title;
 
     public Song (int id) {
         this.id = id;
@@ -36,7 +34,7 @@ public class Song implements Comparable{
 
     @Override
     public String toString() {
-        return "Song " + id + " : " + title;
+        return "Song " + id + " : " + title + " " + artist + " " + album + " " + genre;
     }
 
     @Override
